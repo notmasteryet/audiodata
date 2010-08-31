@@ -1,0 +1,61 @@
+<html>
+  <head>
+    <title>Toy Piano</title>
+    <script type="text/javascript" src="../audiodata.js"></script>
+    <script type="text/javascript">
+
+      var frequency = 0, currentSoundSample;
+      var sampleRate = 44100;
+
+      function NoteSource() {
+        this.audioParameters = new AudioParameters(1, sampleRate);
+
+        this.read = function(soundData) {
+          var size = soundData.length;
+          if(frequency) { 
+            // sound present
+            var k = 2* Math.PI * frequency / sampleRate;
+            for (var i=0; i<size; i++) {
+              soundData[i] = Math.sin(k * currentSoundSample++);
+            }        
+          }
+          return size;
+
+        };
+      }
+
+      var audioSource = new NoteSource();
+      var audioDestination = new AudioDataDestination();
+      audioDestination.autoLatency = true;
+      audioDestination.writeAsync(audioSource);
+
+      function play(frequency_) {
+        currentSoundSample = 0;
+        frequency = frequency_;
+      }
+
+      function stop() {
+        frequency = 0;
+      }
+  </script>
+  </head>
+  <body>
+    <div id="pianoDiv" style="padding: 20px;">
+    <svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 350 200" preserveAspectRatio="xMidYMid slice" >  
+      <rect id="noteC" x="0" y="0" width="50" height="200" stroke="black" fill="white" onmousedown="play(261.6256)" onmouseup="stop()" />
+      <rect id="noteD" x="50" y="0" width="50" height="200" stroke="black" fill="white" onmousedown="play(293.6648)" onmouseup="stop()" />
+      <rect id="noteE" x="100" y="0" width="50" height="200" stroke="black" fill="white" onmousedown="play(329.6276)" onmouseup="stop()" />
+      <rect id="noteF"x="150" y="0" width="50" height="200" stroke="black" fill="white" onmousedown="play(349.2282)" onmouseup="stop()" />
+      <rect id="noteG" x="200" y="0" width="50" height="200" stroke="black" fill="white" onmousedown="play(391.9954)" onmouseup="stop()" />
+      <rect id="noteA" x="250" y="0" width="50" height="200" stroke="black" fill="white" onmousedown="play(440.0000)" onmouseup="stop()" />
+      <rect id="noteB"x="300" y="0" width="50" height="200" stroke="black" fill="white" onmousedown="play(493.8833)" onmouseup="stop()" />
+
+      <rect id="noteCsharp" x="35" y="0" width="30" height="150" stroke="black" fill="black" onmousedown="play(277.1826)" onmouseup="stop()" />
+      <rect id="noteDsharp" x="85" y="0" width="30" height="150" stroke="black" fill="black" onmousedown="play(311.1270)" onmouseup="stop()" />
+      <rect id="noteFsharp" x="185" y="0" width="30" height="150" stroke="black" fill="black" onmousedown="play(369.9944)" onmouseup="stop()" />
+      <rect id="noteGsharp" x="235" y="0" width="30" height="150" stroke="black" fill="black" onmousedown="play(415.3047)" onmouseup="stop()" />
+      <rect id="noteAsharp" x="285" y="0" width="30" height="150" stroke="black" fill="black" onmousedown="play(466.1638)" onmouseup="stop()" />
+    </svg>  
+    </div>
+  </body>
+</html>

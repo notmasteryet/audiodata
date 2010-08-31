@@ -1,0 +1,55 @@
+<html>
+<head>
+  <title>Sound display and replay</title>
+  <script src="../audiodata.js"></script>
+  <script>
+
+  function CanvasDrawListener(canvasElement) {
+    var context = canvasElement.getContext("2d");
+    var width = canvasElement.width, height = canvasElement.height;
+
+    var step;
+    this.init = function(p) { step = p.channels; };
+
+    this.write = function(data) {
+      context.strokeStyle = "#0000FF";
+      context.fillStyle = "#808080";
+      context.fillRect(0,0,width,height);
+      context.beginPath();
+      context.moveTo(0,height/2*(1-data[0]));
+      for(var i=1,j=step;i<width;i++,j+=step) {
+        context.lineTo(i,height/2*(1-data[j]));
+      }
+      context.stroke();
+      context.closePath();
+    };
+
+    this.shutdown = function() {};
+  }
+
+  function initialize() {
+    var audio = document.getElementById("a1"), canvas = document.getElementById("c1");
+    audio.volume = 0;
+
+    var source = new AudioDataSource(audio);
+
+    var canvasDestination = new CanvasDrawListener(canvas);
+    var outputDestination = new AudioDataDestination();
+
+    var splitter = new AudioDataSplitter();
+    splitter.addOutput(canvasDestination);
+    splitter.addOutput(outputDestination);
+
+    source.readAsync(splitter);
+  }
+
+  window.addEventListener("load", initialize, false);
+
+  </script>
+</head>
+<body>
+  <audio id="a1" src="MozartPianoConcertoNo25ShortShortShortLongMotif.ogg" controls></audio>
+  <br>
+  <canvas id="c1" width="400" height="100"></canvas>
+</body>
+</html>
