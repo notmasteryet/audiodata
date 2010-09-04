@@ -125,6 +125,8 @@ AudioDataDestination.prototype.write = function(data) {
 
 AudioDataDestination.prototype.writeAsync = function(source) {
   var audioParameters = source.audioParameters;
+  var channels = audioParameters.channels;
+  var samplesPerSecond = channels * audioParameters.sampleRate;
   this.init(audioParameters);
   
   var tail = null;
@@ -133,13 +135,10 @@ AudioDataDestination.prototype.writeAsync = function(source) {
 
   if(autoLatency) {
     this.latency = 0;
-    prebufferSize = audioParameters.channels *
-                    audioParameters.sampleRate * 0.020; // initial latency 20ms
-    prebufferSizeDelta = audioParameters.channels *
-                    audioParameters.sampleRate * 0.010; // with 10ms step
+    prebufferSize = samplesPerSecond * 0.020; // initial latency 20ms
+    prebufferSizeDelta = samplesPerSecond * 0.010; // with 10ms step
   } else {
-    prebufferSize = audioParameters.channels *
-                    audioParameters.sampleRate * this.latency;
+    prebufferSize = samplesPerSecond * this.latency;
   }
 
   var destination = this;
@@ -177,20 +176,16 @@ AudioDataDestination.prototype.writeAsync = function(source) {
        } else {
          autoLatency = false;
          prebufferSize += 2 * prebufferSizeDelta; // add couple for missed timer events
-
-         destination.latency = prebufferSize / audioParameters.channels /
-                    audioParameters.sampleRate;
-
-document.title = destination.latency;
+         destination.latency = prebufferSize / samplesPerSecond;
        }
       } else {
         prebufferSize += prebufferSizeDelta;
       }
     }
 
-    if(available > 0) {
-      // Request some sound data from the callback function.
-      var soundData = new Float32Array(available);
+    if(available >= channels) {
+      // Request some sound data from the callback function, align to channels boundary.
+      var soundData = new Float32Array(available - (available % channels));
       var read = source.read(soundData);
       if(!read) {
         return; // no new data found
