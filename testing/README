@@ -1,0 +1,3 @@
+Use Mozilla JS shell (part of the mozilla-central) to do testing. 
+
+Set JSSHELL environment variable to the js executable.
