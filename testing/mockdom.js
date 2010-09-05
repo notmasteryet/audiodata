@@ -1,24 +1,44 @@
 // Mock DOM objects with Audio Data API
 
 function Audio() {
-  this.mozChannels = void(0);
-  this.mozSampleRate = void(0);
-  this.mozFrameBufferSize = void(0);
   this.readState = 0;
   this.__written = [];
+  this.__playbackPosition = 0;
+  this.__hardwareBuffer = 0.4;
+  this.__hardwareWritten = [];
 }
 Audio.prototype.addEventListener = addEventListener;
 Audio.prototype.removeEventListener = removeEventListener;
 Audio.prototype.__dispatchEvent = __dispatchEvent;
+Audio.prototype.mozChannels = void(0);
+Audio.prototype.mozSampleRate = void(0);
+Audio.prototype.mozFrameBufferSize = void(0);
 Audio.prototype.mozSetup = function(channels, sampleRate) {
   this.mozChannels = channels;
   this.mozSampleRate = sampleRate;
+  var audio = this, started = new Date().valueOf();
+  var interval = setInterval(function() {
+    var lag = channels * sampleRate * audio.__hardwareBuffer;
+    var hardwareWritten = (new Date().valueOf() - started) / 1000 * channels * sampleRate;
+    var write = Math.floor(hardwareWritten - audio.__hardwareWritten.length);
+    while(write > 0 && audio.__playbackPosition + lag < audio.__written.length) {
+      audio.__hardwareWritten.push(audio.__written[audio.__playbackPosition++]);
+      write--;
+    }
+    while(write > 0) {
+      audio.__hardwareWritten.push(NaN);
+      write--;
+    }
+  }, 10);
 };
 Audio.prototype.mozCurrentSampleOffset = function() {
-  return this.__written.length;
+  return this.__playbackPosition;
 };
 Audio.prototype.mozWriteAudio = function(data) {
-  this.__written = this.__written.concat(data);
+  for(var i=0,len=data.length;i<len;++i) {
+    this.__written.push(data[i]);
+  }
+  return data.length;
 };
 Audio.prototype.__play = function(channels, sampleRate, data) {
   this.mozChannels = channels;

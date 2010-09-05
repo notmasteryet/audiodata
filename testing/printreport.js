@@ -17,6 +17,9 @@ for(var i=0;i<totalCount;++i) {
   }
 }
 
-print(errors.join(""));
+if(errors.length > 0) {
+  print("TEST FAILURES FOUND:");
+  print(errors.join(""));
+}
 print("TESTING SUMMARY");
 print("Total: " + totalCount + "; Passed: " + passed + "; Failed: " + failed + "; Inconclusive: " + inconclusive);
