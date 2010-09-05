@@ -2,6 +2,7 @@ TESTS = \
 	checkobjects.js \
 	readasync.js \
 	autolag.js \
+	memorysource.js \
 	$(NULL)
 
 ifdef TEST

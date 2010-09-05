@@ -17,13 +17,23 @@ Audio.prototype.mozSetup = function(channels, sampleRate) {
   this.mozChannels = channels;
   this.mozSampleRate = sampleRate;
   var audio = this, started = new Date().valueOf();
+  var lag = channels * sampleRate * audio.__hardwareBuffer;
   var interval = setInterval(function() {
-    var lag = channels * sampleRate * audio.__hardwareBuffer;
     var hardwareWritten = (new Date().valueOf() - started) / 1000 * channels * sampleRate;
     var write = Math.floor(hardwareWritten - audio.__hardwareWritten.length);
-    while(write > 0 && audio.__playbackPosition + lag < audio.__written.length) {
-      audio.__hardwareWritten.push(audio.__written[audio.__playbackPosition++]);
-      write--;
+    if(audio.__playbackPosition < audio.__written.length) {
+      while(write > 0 && lag > 0) {
+        audio.__hardwareWritten.push(NaN);
+        write--;
+        lag--;
+      }
+      while(write > 0 && audio.__playbackPosition < audio.__written.length) {
+        audio.__hardwareWritten.push(audio.__written[audio.__playbackPosition++]);
+        write--;
+      }
+    } 
+    if (write > 0 && audio.__playbackPosition >= audio.__written.length) {
+      lag = channels * sampleRate * audio.__hardwareBuffer;
     }
     while(write > 0) {
       audio.__hardwareWritten.push(NaN);

@@ -17,5 +17,5 @@ function test() {
 
   Assert.assertTrue(dest.currentWritePosition > 64000, "Data written");
   // mock hardware lag in 0.4s
-  Assert.assertTrue(Math.abs(dest.latency - 0.425) <= 0.025, "Latency detected " + dest.latency + "; expected in 0.40-0.45");
+  Assert.assertTrue(0.41 <= dest.latency && dest.latency <= 0.45, "Latency detected " + dest.latency + "; expected in 0.41-0.45");
 }

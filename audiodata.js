@@ -48,6 +48,7 @@ function AudioParameters(channels, sampleRate) {
 
 /**
  * Maker of the end of the sound stream.
+ * @final
  */
 var EndOfAudioStream; // implicit = undefined;
 
@@ -246,15 +247,14 @@ AudioDataDestination.prototype.writeAsync = function (source) {
     prebufferSize = samplesPerSecond * this.latency;
   }
 
+  var destination = this, audio = this.__audio;
+
   function shutdownWrite() {
     clearInterval(this.__asyncInterval);
     delete this.__asyncInterval;
 
-    this.shutdown();
+    destination.shutdown();
   }
-
-  var destination = this;
-  var audio = this.__audio;
 
   // The function called with regular interval to populate 
   // the audio output buffer.
@@ -322,6 +322,50 @@ AudioDataDestination.prototype.writeAsync = function (source) {
       destination.currentWritePosition += written;
     }
   }, 10);
+};
+
+/**
+ * Simple array based source.
+ * @param {AudioParameters} audioParameters The parameters of the sound.
+ * @param {Array} data The sample data.
+ * @constructor
+ * @implements IAudioDataSource
+ */
+function AudioDataMemorySource(audioParameters, data) {
+  /**
+   * Gets audio parametes.
+   * @type AudioParameters
+   */
+  this.audioParameters = audioParameters;
+  /**
+   * Gets the sample data.
+   * @type Array
+   */
+  this.data = data;
+  /**
+   * Gets or sets the read position.
+   * @private
+   */
+  this.readPosition = 0;
+}
+
+/**
+ * Reads portion of the data.
+ * @param {Array} data The input data buffer.
+ * @returns The amount of read data, or EndOfAudioStream if no data available.
+ */
+AudioDataMemorySource.prototype.read = function (buffer) {
+  if (this.data.length <= this.readPosition) {
+    return EndOfAudioStream;
+  }
+
+  var position = this.readPosition, data = this.data,
+    read = Math.min(buffer.length, data.length - position);
+  for (var i = 0; i < read; ++i) {
+    buffer[i] = data[position++];
+  }
+  this.readPosition = position;
+  return read;
 };
 
 /* AudioDataMixer */

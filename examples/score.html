@@ -1,0 +1,115 @@
+<html>
+  <head>
+    <title>Memory Buffer Playback Example</title>
+    <script type="text/javascript" src="../audiodata.js"></script>
+    <script id="script1" type="text/javascript">
+
+      var sampleRate = 44100;
+      var notes = {C:261.6256, D:293.6648, E: 329.6276, F:349.2282, G: 391.9954, A: 440.0000, B: 493.8833 };
+
+      // Preparing the buffer
+      var scoreLength = 20, tempo = 120;
+      var bufferLength = Math.ceil(sampleRate * scoreLength * 60 / tempo);
+      var buffer = new Float32Array(bufferLength);
+
+      function playNote(frequency, index, length) {
+        var start = Math.ceil(sampleRate * index * 60 / tempo);
+        var end = Math.floor(sampleRate * ((index + length) * 60 / tempo - 0.1) ); 
+        // -100ms pause at the end
+
+        var k = 2* Math.PI * frequency / sampleRate;
+        for (var i = start; i <= end; i++) {
+          buffer[i] = Math.sin(k * i);
+        }
+      }
+
+      // Playing notes into the buffer
+      playNote(notes.C, 0, 1); 
+      playNote(notes.C, 1, 1); 
+      playNote(notes.G, 2, 1); 
+      playNote(notes.G, 3, 1);
+      playNote(notes.A, 4, 1); 
+      playNote(notes.A, 5, 1); 
+      playNote(notes.G, 6, 2); 
+      playNote(notes.F, 8, 1); 
+      playNote(notes.F, 9, 1); 
+      playNote(notes.E, 10, 1); 
+      playNote(notes.E, 11, 1);
+      playNote(notes.D, 12, 1); 
+      playNote(notes.D, 13, 1); 
+      playNote(notes.C, 14, 2); 
+  
+      // Setting up the sound source
+      var audioParameters = new AudioParameters(1, sampleRate);     
+      var audioSource = new AudioDataMemorySource(audioParameters, buffer);
+
+      // Playing
+      var audioDestination = new AudioDataDestination();
+      audioDestination.writeAsync(audioSource);
+  </script>
+  </head>
+  <body>
+    <h1>Memory Buffer Playback Example</h1>
+
+    <!-- Original image: http://en.wikipedia.org/wiki/File:Twinkle_Twinkle_Little_Star.png
+         License: GNU; Attribution: Helix84 -->
+    <img src="data:image/png;base64,
+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" alt="Twinkle Twinkle Little Star score">
+    <hr>
+    <pre id="out1"></pre>
+    <script>document.getElementById("out1").innerHTML = document.getElementById("script1").text.replace(/</g, "&lt;");</script>
+  </body>
+</html>
