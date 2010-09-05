@@ -22,26 +22,66 @@
  */
 
 /*jslint indent:2, nomen: false, plusplus: false, onevar: false */
-/*global Float32Array: true, Audio: true, clearInterval: true, setInterval: true */
+/*global Float32Array: true, Audio: true, clearInterval: true, 
+  setInterval: true */
 
-/* AudioParameters */
+/**
+ * This is a audio parameters structure. The structure contains channels and 
+ * sampleRate parameters of the sound.
+ * @param {int} channels The amount of the channels.
+ * @param {int} sampleRate The sampling rate of the sound.
+ * @constructor
+ */
 function AudioParameters(channels, sampleRate) {
+  /**
+   * Gets the amount of channels of the sound.
+   * @type int
+   */
   this.channels = channels;
+
+  /**
+   * Gets the sampling rate of the sound.
+   * @type int
+   */
   this.sampleRate = sampleRate;
 }
 
+/**
+ * Maker of the end of the sound stream.
+ */
+var EndOfAudioStream; // implicit = undefined;
+
+/**
+ * Compares two instances of the audio parameters structure.
+ * @param {AudioParameters} other The other audio parameters structure.
+ * @returns {boolean} true is the structures have same channels amount and sample rate.
+ */
 AudioParameters.prototype.match = function (other) {
   return this.channels === other.channels && this.sampleRate === other.sampleRate;
 };
 
-/* AudioDataSource */
+/**
+ * The audio data source for the HTMLMediaElement (&lt;video&gt; or 
+ * &lt;audio&gt;).
+ * @param {HTMLMediaElement} mediaElement The HTML media element.
+ * @constructor
+ * @implements IAudioDataSourceMaster
+ */
 function AudioDataSource(mediaElement) {
   if (!("mozChannels" in mediaElement)) {
     throw "Audio Data API read is not supported";
   }
+
+  /**
+   * Gets HTML media element that is a source of a sound.
+   * @type HTMLMediaElement
+   */
   this.mediaElement = mediaElement;
 }
-
+/**
+ * Begins to read of the sound data and sending it to the destination.
+ * @param {IAudioDataDestination} destination The destination where data will be sent.
+ */
 AudioDataSource.prototype.readAsync = function (destination) {
   this.__destination = destination;
   var source = this;
@@ -75,6 +115,10 @@ AudioDataSource.prototype.readAsync = function (destination) {
   }
 };
 
+/**
+ * Ends to read the sound data. 
+ * @see #readAsync
+ */
 AudioDataSource.prototype.shutdown = function () {
   if (this.__removeListeners) {
     this.__removeListeners();
@@ -87,6 +131,10 @@ AudioDataSource.prototype.shutdown = function () {
   delete this.__destination;
 };
 
+/**
+ * Initializes the audio parameters.
+ * @private
+ */
 AudioDataSource.prototype.onload = function () {
   var media = this.mediaElement;
   var audioParameters = new AudioParameters(media.mozChannels, media.mozSampleRate);
@@ -96,12 +144,46 @@ AudioDataSource.prototype.onload = function () {
   this.__destinationInitialized = true;
 };
 
-/* AudioDataDestination */
+/**
+ * Basic audio destination object.
+ * @constructor
+ * @implements IAudioDataDestinationMaster
+ * @implements IAudioDataDestination
+ */
 function AudioDataDestination() {
-  this.autoLatency = false;
-  this.latency = 0.5;
 }
 
+/**
+ * Gets the parameters of the sound.
+ * @type AudioParameters
+ */
+AudioDataDestination.prototype.audioParameters = null;
+/**
+ * Gets or sets if auto latency mode for {@link #writeAsync} is enabled.
+ * Disabled by default.
+ * @type boolean
+ */
+AudioDataDestination.prototype.autoLatency = false;
+/**
+ * Gets or sets latency mode for {@link #writeAsync}. The latency is set
+ * in seconds. By defualt, it's set to 0.5 (500ms).
+ * @type float
+ */
+AudioDataDestination.prototype.latency = 0.5;
+/**
+ * Gets the playback position.
+ * @type int
+ */
+AudioDataDestination.prototype.currentPlayPosition = 0;
+/**
+ * Gets the amount of data written so far.
+ * @type int
+ */
+AudioDataDestination.prototype.currentWritePosition = 0;
+/**
+ * Initializes the output with the {@link AudioParameters}.
+ * @param {AudioParameters} audioParameters The parameters of the sound.
+ */
 AudioDataDestination.prototype.init = function (audioParameters) {
   if (!(audioParameters instanceof AudioParameters)) {
     throw "Invalid audioParameters type";
@@ -118,6 +200,10 @@ AudioDataDestination.prototype.init = function (audioParameters) {
   this.currentWritePosition = 0;
 };
 
+/**
+ * Destroys the output. 
+ * @see #write
+ */
 AudioDataDestination.prototype.shutdown = function () {
   if (this.__asyncInterval) {
     clearInterval(this.__asyncInterval);
@@ -126,10 +212,22 @@ AudioDataDestination.prototype.shutdown = function () {
   delete this.__audio;
 };
 
+/**
+ * Writes the data to the output. No all the data can be written.
+ * @param {Array} data The array of the samples. 
+ * @returns {int} The amount of the written samples.
+ */
 AudioDataDestination.prototype.write = function (data) {
   return this.__audio.mozWriteAudio(data);
 };
 
+/**
+ * Begins the write the data from the source. The writting is perform with the
+ * specified by {@link #latency} parameter.
+ * @param {IAudioDataSource} source The source of the data.
+ * @see #latency
+ * @see #autoLatency
+ */
 AudioDataDestination.prototype.writeAsync = function (source) {
   var audioParameters = source.audioParameters;
   var channels = audioParameters.channels;
@@ -146,6 +244,13 @@ AudioDataDestination.prototype.writeAsync = function (source) {
     prebufferSizeDelta = samplesPerSecond * 0.010; // with 10ms step
   } else {
     prebufferSize = samplesPerSecond * this.latency;
+  }
+
+  function shutdownWrite() {
+    clearInterval(this.__asyncInterval);
+    delete this.__asyncInterval;
+
+    this.shutdown();
   }
 
   var destination = this;
@@ -194,7 +299,13 @@ AudioDataDestination.prototype.writeAsync = function (source) {
       // Request some sound data from the callback function, align to channels boundary.
       var soundData = new Float32Array(available - (available % channels));
       var read = source.read(soundData);
-      if (!read) {
+      if (read === null || read === EndOfAudioStream) {
+        // End of stream
+        shutdownWrite();
+        return;
+      }
+
+      if (read === 0) {
         return; // no new data found
       }
 

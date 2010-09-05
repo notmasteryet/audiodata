@@ -1,0 +1,21 @@
+The Audio Data API Objects library
+
+Source can be found at
+  http://github.com/notmasteryet/audiodata/
+
+Start examples and wiki at
+  http://wiki.github.com/notmasteryet/audiodata/
+
+The working examples can be found in examples/ folder.
+
+The testing requires JS shell from mozilla-central run in the testing/ folder 
+(specify the JSSHELL variable with path to the binary):
+  make run-tests
+
+Also, jslint can be run (download jslint.js into the testing/ folder):
+  make run-lint
+
+To build the documentation, run in the docs/ folder:
+  make build-docs
+
+
