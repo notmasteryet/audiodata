@@ -2,7 +2,6 @@ function test() {
   var len = 64000, samples = new Float32Array(len);
   for(var i = 0; i < len; ++i) {
     samples[i] = 1 / (i + 1);
-    checksum += samples[i];
   }
   var checksum = 0, checkLength = len;
   for(var i = 0; i < checkLength; ++i) {

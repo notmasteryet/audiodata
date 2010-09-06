@@ -3,6 +3,8 @@ TESTS = \
 	readasync.js \
 	autolag.js \
 	memorysource.js \
+	mixer.js \
+	splitter.js \
 	$(NULL)
 
 ifdef TEST

@@ -37,8 +37,8 @@
     var outputDestination = new AudioDataDestination();
 
     var splitter = new AudioDataSplitter();
-    splitter.addOutput(canvasDestination);
-    splitter.addOutput(outputDestination);
+    splitter.addOutputDestination(canvasDestination);
+    splitter.addOutputDestination(outputDestination);
 
     source.readAsync(splitter);
   }

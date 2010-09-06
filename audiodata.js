@@ -325,7 +325,7 @@ AudioDataDestination.prototype.writeAsync = function (source) {
 };
 
 /**
- * Simple array based source.
+ * Simple array-based source.
  * @param {AudioParameters} audioParameters The parameters of the sound.
  * @param {Array} data The sample data.
  * @constructor
@@ -348,7 +348,6 @@ function AudioDataMemorySource(audioParameters, data) {
    */
   this.readPosition = 0;
 }
-
 /**
  * Reads portion of the data.
  * @param {Array} data The input data buffer.
@@ -368,85 +367,210 @@ AudioDataMemorySource.prototype.read = function (buffer) {
   return read;
 };
 
-/* AudioDataMixer */
-function AudioDataMixer(audioParameters) {
-  this.audioParameters = audioParameters;
-  this.__inputs = [];
+/**
+ * Stores all written data.
+ * @constructor
+ * @implements IAudioDataDestination
+ */
+function AudioDataMemoryDestination() {
+  /**
+   * Gets the write position.
+   * @type int
+   */
+  this.currentWritePosition = 0;
+  /**
+   * Gets the buffered data store.
+   * @private
+   */
+  this.__buffers = [];
 }
+/**
+ * Gets the parameters of the sound.
+ * @type AudioParameters
+ */
+AudioDataMemoryDestination.prototype.audioParameters = null;
+/**
+ * Initializes the memory buffer with the audio parameters.
+ * @param {AudioParameters} audioParameters The parameters of the sound.
+ */
+AudioDataMemoryDestination.prototype.init = function (audioParameters) {
+  this.audioParameters = audioParameters;
+};
+/**
+ * Finalizes the memory buffer.
+ */
+AudioDataMemoryDestination.prototype.shutdown = function () {
+};
+/**
+ * Writes the data to the memory buffer.
+ * @param {Array} soundData The array of the samples. 
+ * @returns {int} The amount of the written samples. That equals to 
+ *   the soundData length.
+ */
+AudioDataMemoryDestination.prototype.write = function (soundData) {
+  this.currentWritePosition += soundData.length;
+  this.__buffers.push(soundData);
+  return soundData.length;
+};
+/**
+ * Exports the written data as an array.
+ * @returns {Array} All written sound data.
+ */
+AudioDataMemoryDestination.prototype.toArray = function () {
+  var data = new Float32Array(this.currentWritePosition), position = 0;
+  var buffers = this.__buffers;
+  for (var i = 0; i < buffers.length; ++i) {
+    var buffer = buffers[i];
+    for (var j = 0; j < buffer.length; ++j) {
+      data[position++] = buffer[j];
+    }
+  }
+  return data;
+};
 
-AudioDataMixer.prototype.addInput = function (input) {
-  if (!input.audioParameters.match(this.audioParameters)) {
+/**
+ * Mixes signal from several sources.
+ * @param {AudioParameters} audioParameters The parameters of the sound.
+ * @constructor
+ * @implements IAudioDataSource
+ */
+function AudioDataMixer(audioParameters) {
+  /**
+   * Gets audio parametes.
+   * @type AudioParameters
+   */  
+  this.audioParameters = audioParameters;
+  /**
+   * Gets input sources.
+   * @private
+   */
+  this.__sources = [];
+}
+/**
+ * Adds new input source to the mixer. The source will be removed when the end of 
+ * the stream will be found.
+ * @param {IAudioDataSource} source The input source.
+ */
+AudioDataMixer.prototype.addInputSource = function (source) {
+  if (!source.audioParameters.match(this.audioParameters)) {
     throw "Invalid input parameters";
   }
-  this.__inputs.push(input);
+  this.__sources.push(source);
 };
-
-AudioDataMixer.prototype.removeInput = function (input) {
-  var index = 0;
-  while (index < this.__inputs.length && this.__inputs[index] !== input) {
-    ++index;
-  }
-  if (index < this.__inputs.length) {
-    this.__inputs.splice(index, 1);
-  }
-};
-
+/**
+ * Reads the data from the input source(s) and joins in one output array.
+ * @param {Array} soundData The result output sound data.
+ * @returns {int} Returns amount of data that was read -- equals to 
+ *   the lengths of the soundData array.
+ */
 AudioDataMixer.prototype.read = function (soundData) {
-  var size = soundData.length;
-  for (var i = 0; i < this.__inputs.length; ++i) {
+  var sources = this.__sources, size = soundData.length;
+  var toRemove = [];
+  for (var i = 0; i < sources.length; ++i) {
+    // Make new array before using it with the sources
     var data = new Float32Array(size);
-    var read = this.__inputs[i].read(data);
+    var read = sources[i].read(data);
+
+    if (read === null || read === EndOfAudioStream) {
+      toRemove.push(i);
+      continue;
+    }
+
     for (var j = 0; j < read; ++j) {
       soundData[j] += data[j];
     }
   }
+  // Remove inputs that's ended
+  while (toRemove.length > 0) {
+    sources.splice(toRemove.pop(), 1);
+  }
   return size;
 };
 
-/* AudioDataSplitter */
-
+/**
+ * The splitter node that sends written data to the multiple destinations.
+ * @contructor
+ * @implements IAudioDataDestination
+ */
 function AudioDataSplitter() {
-  this.__outputs = [];
+  /**
+   * Gets destinations.
+   * @private
+   */
+  this.__destinations = [];
 }
-
-AudioDataSplitter.prototype.addOutput = function (output) {
-  this.__outputs.push(output);
-  if (this.audioParameters) {
-    output.init(this.audioParameters);
+/**
+ * Gets the parameters of the sound.
+ * @type AudioParameters
+ */
+AudioDataSplitter.prototype.audioParameters = null;
+/**
+ * Adds new output destination to the splitter.
+ * @param {IAudioDataDestination} destination The output destination.
+ */
+AudioDataSplitter.prototype.addOutputDestination = function (destination) {
+  this.__destinations.push(destination);
+  if (this.audioParameters !== null) {
+    destination.init(this.audioParameters);
   }
 };
-
-AudioDataSplitter.prototype.removeOutput = function (output) {
-  var index = 0;
-  while (index < this.__outputs.length && this.__output[index] !== output) {
+/**
+ * Remove the output destination from the splitter.
+ * @param {IAudioDataDestination} destination The output destination.
+ */
+AudioDataSplitter.prototype.removeOutputDestination = function (destination) {
+  var index = 0, destinations = this.__destinations;
+  while (index < destinations.length && destinations[index] !== destination) {
     ++index;
   }
-  if (index < this.__inputs.length) {
-    this.__outputs.splice(index, 1);
+  if (index < destinations.length) {
+    this.destinations.splice(index, 1);
     if (this.audioParameters) {
-      output.shutdown();
+      destination.shutdown();
     }
   }
 };
-
+/**
+ * Initializes the splitter with the audio parameters.
+ * @param {AudioParameters} audioParameters The parameters of the sound.
+ */
 AudioDataSplitter.prototype.init = function (audioParameters) {
   this.audioParameters = audioParameters;
-  for (var i = 0; i < this.__outputs.length; ++i) {
-    this.__outputs[i].init(audioParameters);
+  var destinations = this.__destinations;
+  for (var i = 0; i < destinations.length; ++i) {
+    destinations[i].init(audioParameters);
   }
 };
-
+/**
+ * Destroys the splitter and all connected output destinations.
+ */
 AudioDataSplitter.prototype.shutdown = function () {
-  for (var i = 0; i < this.__outputs.length; ++i) {
-    this.__outputs[i].shutdown();
+  var destinations = this.__destinations;
+  for (var i = 0; i < destinations.length; ++i) {
+    destinations[i].shutdown();
   }
-  delete this.audioParameters;
+  this.audioParameters = null;
+};
+/**
+ * Writes the data to the all connection output destination(s).
+ * @param {Array} soundData The array of the samples. 
+ * @returns {int} The amount of the written samples. That equals to 
+ *   the soundData length.
+ */
+AudioDataSplitter.prototype.write = function (soundData) {
+  var destinations = this.__destinations, size = soundData.length;
+  for (var i = 0; i < destinations.length - 1; ++i) {
+    // Make copies for all outputs except last one
+    var data = new Float32Array(size);
+    for (var j = 0; j < size; ++j) {
+      data[j] = soundData[j];
+    }    
+    destinations[i].write(data);
+  }
+  if (destinations.length > 0) {
+    destinations[destinations.length - 1].write(soundData);
+  }
+  return size;
 };
 
-AudioDataSplitter.prototype.write = function (soundData) {
-  for (var i = 0; i < this.__outputs.length; ++i) {
-    this.__outputs[i].write(soundData);
-  }
-  return soundData.length;
-};
 
