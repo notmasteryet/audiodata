@@ -50,7 +50,7 @@ function AudioParameters(channels, sampleRate) {
  * Maker of the end of the sound stream.
  * @final
  */
-var EndOfAudioStream; // implicit = undefined;
+var EndOfAudioStream = null;
 
 /**
  * Compares two instances of the audio parameters structure.
@@ -299,7 +299,7 @@ AudioDataDestination.prototype.writeAsync = function (source) {
       // Request some sound data from the callback function, align to channels boundary.
       var soundData = new Float32Array(available - (available % channels));
       var read = source.read(soundData);
-      if (read === null || read === EndOfAudioStream) {
+      if (read === EndOfAudioStream) {
         // End of stream
         shutdownWrite();
         return;
@@ -471,7 +471,7 @@ AudioDataMixer.prototype.read = function (soundData) {
     var data = new Float32Array(size);
     var read = sources[i].read(data);
 
-    if (read === null || read === EndOfAudioStream) {
+    if (read === EndOfAudioStream) {
       toRemove.push(i);
       continue;
     }
@@ -573,4 +573,128 @@ AudioDataSplitter.prototype.write = function (soundData) {
   return size;
 };
 
+/**
+ * Signal basic filter.
+ * @param next The source or destination object. Depends whether 
+ *   read or write will be performed.
+ * @constructor
+ * @implements IAudioDataDestination
+ * @implements IAudioDataSource
+ */
+function AudioDataFilter(next) {
+  if (next === null) {
+    return; // inherited object construction
+  }
+
+  /**
+   * Gets the next object after/before the filter.
+   */
+  this.next = next;
+
+  if (next.read instanceof Function) {
+    // next is an instance of IAudioDataSource
+    this.audioParameters = next.audioParameters;
+  }
+}
+/**
+ * Gets the parameters of the sound.
+ * @type AudioParameters
+ */
+AudioDataFilter.prototype.audioParameters = null;
+/**
+ * Processes the signal. The method is overriden in the inherited classes.
+ * @param {Array} data The signal data.
+ * @param {int} length The signal data to be processed starting from the beginning.
+ */
+AudioDataFilter.prototype.process = function (data, length) {};
+/**
+ * Initializes the filter with the audio parameters.
+ * @param {AudioParameters} audioParameters The parameters of the sound.
+ */
+AudioDataFilter.prototype.init = function (audioParameters) {
+  this.audioParameters = audioParameters;
+  this.next.init(audioParameters);
+};
+/**
+ * Destroys the filter.
+ */
+AudioDataFilter.prototype.shutdown = function () {
+  this.next.shutdown();
+};
+/**
+ * Writes the data to the filter.
+ * @param {Array} soundData The array of the samples. 
+ * @returns {int} The amount of the written samples. 
+ */
+AudioDataFilter.prototype.write = function (soundData) {
+  this.process(soundData, soundData.length);
+  return this.next.write(soundData);
+};
+/**
+ * Reads the data to the filter.
+ * @param {Array} soundData The array of the samples. 
+ * @returns {int} The amount of the read samples. 
+ */
+AudioDataFilter.prototype.read = function (soundData) {
+  var read = this.next.read(soundData);
+  if (read === EndOfAudioStream) {
+    return read;
+  }
+
+  this.process(soundData, read);
+  return read;
+};
+
+/**
+ * Low pass filter.
+ * @param next The source or destination object. Depends whether 
+ *   read or write will be performed.
+ * @param frequency The pass frequency.
+ * @constructor
+ * @base AudioDataFilter
+ */
+function AudioDataLowPassFilter(next, frequency) {
+  AudioDataFilter.call(this, next);
+
+  /**
+   * Gets pass frequency.
+   * @type float
+   */
+  this.frequency = frequency;
+  this.__updateCoefficients();
+}
+AudioDataLowPassFilter.prototype = new AudioDataFilter(null);
+/**
+ * Re-calculate coefficients.
+ * @private
+ */
+AudioDataLowPassFilter.prototype.__updateCoefficients = function () {
+  if (this.audioParameters !== null) {
+    this.__alpha = Math.exp(-2 * Math.PI * this.frequency / this.audioParameters.sampleRate);
+    this.__last = 0;
+  }
+};
+/**
+ * Initializes the filter with the audio parameters.
+ * @param {AudioParameters} audioParameters The parameters of the sound.
+ */
+AudioDataLowPassFilter.prototype.init = function (audioParameters) {
+  AudioDataFilter.prototype.init.call(this, audioParameters);
+  this.__updateCoefficients();
+};
+/**
+ * Processes the signal. The method is overriden in the inherited classes.
+ * @param {Array} data The signal data.
+ * @param {int} length The signal data to be processed starting from the beginning.
+ */
+AudioDataLowPassFilter.prototype.process = function (data, length) {
+  if (length === 0) {
+    return;
+  }
+  var alpha = this.__alpha, last = this.__last;
+  for (var i = 0; i < length; ++i) {
+    last = data[i] = data[i] * (1 - alpha) + last * alpha;
+  }
+  this.__last = last;
+};
 

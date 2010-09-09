@@ -5,6 +5,7 @@ TESTS = \
 	memorysource.js \
 	mixer.js \
 	splitter.js \
+	filter.js \
 	$(NULL)
 
 ifdef TEST
