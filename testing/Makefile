@@ -6,6 +6,7 @@ TESTS = \
 	mixer.js \
 	splitter.js \
 	filter.js \
+	lowpass.js \
 	$(NULL)
 
 ifdef TEST

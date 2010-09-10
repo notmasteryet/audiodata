@@ -23,7 +23,7 @@
 
 /*jslint indent:2, nomen: false, plusplus: false, onevar: false */
 /*global Float32Array: true, Audio: true, clearInterval: true, 
-  setInterval: true */
+  setInterval: true, FFT: true */
 
 /**
  * This is a audio parameters structure. The structure contains channels and 
@@ -45,13 +45,6 @@ function AudioParameters(channels, sampleRate) {
    */
   this.sampleRate = sampleRate;
 }
-
-/**
- * Maker of the end of the sound stream.
- * @final
- */
-var EndOfAudioStream = null;
-
 /**
  * Compares two instances of the audio parameters structure.
  * @param {AudioParameters} other The other audio parameters structure.
@@ -60,6 +53,12 @@ var EndOfAudioStream = null;
 AudioParameters.prototype.match = function (other) {
   return this.channels === other.channels && this.sampleRate === other.sampleRate;
 };
+
+/**
+ * Marker of the end of the sound stream.
+ * @final
+ */
+var EndOfAudioStream = null;
 
 /**
  * The audio data source for the HTMLMediaElement (&lt;video&gt; or 
@@ -649,7 +648,7 @@ AudioDataFilter.prototype.read = function (soundData) {
  * Low pass filter.
  * @param next The source or destination object. Depends whether 
  *   read or write will be performed.
- * @param frequency The pass frequency.
+ * @param {float} frequency The pass frequency.
  * @constructor
  * @base AudioDataFilter
  */
@@ -671,7 +670,7 @@ AudioDataLowPassFilter.prototype = new AudioDataFilter(null);
 AudioDataLowPassFilter.prototype.__updateCoefficients = function () {
   if (this.audioParameters !== null) {
     this.__alpha = Math.exp(-2 * Math.PI * this.frequency / this.audioParameters.sampleRate);
-    this.__last = 0;
+    this.__last = new Float32Array(this.audioParameters.channels);
   }
 };
 /**
@@ -683,7 +682,7 @@ AudioDataLowPassFilter.prototype.init = function (audioParameters) {
   this.__updateCoefficients();
 };
 /**
- * Processes the signal. The method is overriden in the inherited classes.
+ * Processes the signal.
  * @param {Array} data The signal data.
  * @param {int} length The signal data to be processed starting from the beginning.
  */
@@ -692,9 +691,149 @@ AudioDataLowPassFilter.prototype.process = function (data, length) {
     return;
   }
   var alpha = this.__alpha, last = this.__last;
+  var j = 0, channels = this.audioParameters.channels;
   for (var i = 0; i < length; ++i) {
-    last = data[i] = data[i] * (1 - alpha) + last * alpha;
+    last[j] = data[i] = data[i] * (1 - alpha) + last[j] * alpha;
+    if (++j >= channels) {
+      j = 0;
+    }
   }
-  this.__last = last;
+};
+
+/**
+ * Gain control filter.
+ * @param next The source or destination object. Depends whether 
+ *   read or write will be performed.
+ * @param {float} gain The sound gain. Normally, this parameter is in range from 0..1.
+ * @constructor
+ * @base AudioDataFilter
+ */
+function AudioDataGainFilter(next, gain) {
+  /**
+   * Gets the gain.
+   * @type float
+   */
+  this.gain = gain;
+}
+/**
+ * Processes the signal.
+ * @param {Array} data The signal data.
+ * @param {int} length The signal data to be processed starting from the beginning.
+ */
+AudioDataGainFilter.prototype.process = function (data, length) {
+  var gain = this.gain;
+  for (var i = 0; i < length; ++i) {
+    data[i] *= gain;
+  }
+};
+
+/**
+ * Signal analyzer.
+ * @param {int} frameSize The analisys block size.
+ * @constructor
+ * @implements AudioDataDestination
+ */
+function AudioDataAnalyzer(frameLength) {
+  this.frameLength = frameLength;
+}
+/**
+ * Gets the parameters of the sound.
+ * @type AudioParameters
+ */
+AudioDataAnalyzer.prototype.audioParameters = null;
+/**
+ * Initializes the analyzer with the audio parameters.
+ * @param {AudioParameters} audioParameters The parameters of the sound.
+ */
+AudioDataAnalyzer.prototype.init = function (audioParameters) {
+  this.__ffts = [];
+  this.__buffers = [];
+  this.__bufferPosition = 0;
+  this.audioParameters = audioParameters;
+  var channels = audioParameters.channels;
+  for (var i = 0; i < channels; ++i) {
+    this.__ffts.push(new FFT(this.frameLength * channels, audioParameters.sampleRate));
+    this.__buffers.push(new Float32Array(this.frameLength));
+  }
+};
+/**
+ * Destroys the analyzer.
+ */
+AudioDataAnalyzer.prototype.shutdown = function () {
+  if (this.__bufferPosition > 0) {
+    var length = this.frameLength, channels = this.audioParameters.channels;
+    for (var j = 0; j < channels; ++j) {
+      var buffer = this.__buffers[j];
+      for (var i = this.__bufferPosition; i < this.frameLength; ++i) {
+        buffer[i] = 0;
+      }
+    }
+    this.__analyzeBuffers();
+  }
+  
+  delete this.__ffts;
+  delete this.__buffers;
+  delete this.__bufferPosition;
+  this.audioParameters = null;
+};
+/**
+ * Writes the data to the analizer.
+ * @param {Array} soundData The array of the samples. 
+ * @returns {int} The amount of the written samples. 
+ */
+AudioDataAnalyzer.prototype.write = function (soundData) {
+  var channels = this.audioParameters.channels;
+  var position = 0, tail = this.frameLength - this.__bufferPosition;
+  var length = Math.floor(soundData.length / channels);
+  var i, j, positionWithOffset, buffer, bufferPosition;
+  while (length >= tail) {
+    for (j = 0; j < channels; ++j) {
+      positionWithOffset = position + j;
+      bufferPosition = this.__bufferPosition;
+      buffer = this.__buffers[j];
+      for (i = 0; i < tail; ++i) {
+        buffer[bufferPosition++] = soundData[positionWithOffset];
+        positionWithOffset += channels;
+      }
+    }
+    this.__analyzeBuffers();
+    this.__bufferPosition = 0;
+    position += tail * channels;
+    tail = this.frameLength;
+    length -= tail;
+  }
+  if (length > 0) {
+    for (j = 0; j < channels; ++j) {
+      positionWithOffset = position + j;
+      bufferPosition = this.__bufferPosition;
+      buffer = this.__buffers[j];
+      for (i = 0; i < length; ++i) {
+        buffer[bufferPosition++] = soundData[positionWithOffset];
+        positionWithOffset += channels;
+      }
+    }
+    this.__bufferPosition += length;
+  }
+  return soundData.length;
+};
+/**
+ * Analizes current buffers.
+ * @private
+ */
+AudioDataAnalyzer.prototype.__analyzeBuffers = function () {
+  var e = { spectrums: [] };
+  var channels = this.audioParameters.channels;
+  for (var i = 0; i < channels; ++i) {
+    var fft = this.__ffts[i];
+    fft.forward(this.__buffers[i]);
+    e.spectrums.push(fft.spectrum);
+  }
+  this.onDataAnalyzed(e);
+};
+/**
+ * Called when buffers are analyzed.
+ * @param e The object that contains spectrograms.
+ */
+AudioDataAnalyzer.prototype.onDataAnalyzed = function (e) {
 };
 

@@ -1,4 +1,5 @@
 // Mock DOM objects with Audio Data API
+load("../misc/dsp.js");
 
 function Audio() {
   this.readState = 0;

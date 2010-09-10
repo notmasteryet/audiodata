@@ -1,0 +1,46 @@
+<html>
+<head>
+  <title>Sound analysis</title>
+  <script src="../audiodata.js"></script>
+  <script src="../misc/dsp.js"></script>
+  <script>
+
+  function draw(canvasElement, spectrum) {
+    var context = canvasElement.getContext("2d");
+    var width = canvasElement.width, height = canvasElement.height;
+
+    context.strokeStyle = "#0000FF";
+    context.fillStyle = "#808080";
+    context.fillRect(0,0,width,height);
+    for(var i=0;i<spectrum.length;++i) {
+      context.beginPath();
+      context.moveTo(i,height);
+      context.lineTo(i,height - spectrum[i]*width);
+      context.stroke();
+      context.closePath();
+    }
+  }
+
+  function initialize() {
+    var audio = document.getElementById("a1"), canvas = document.getElementById("c1");
+
+    var source = new AudioDataSource(audio);
+
+    var outputDestination = new AudioDataAnalyzer(1024);
+    outputDestination.onDataAnalyzed = function(e) {
+      draw(canvas, e.spectrums[0]);
+    };
+
+    source.readAsync(outputDestination);
+  }
+
+  window.addEventListener("load", initialize, false);
+
+  </script>
+</head>
+<body>
+  <audio id="a1" src="MozartPianoConcertoNo25ShortShortShortLongMotif.ogg" controls></audio>
+  <br>
+  <canvas id="c1" width="400" height="100"></canvas>
+</body>
+</html>
