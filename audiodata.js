@@ -752,7 +752,7 @@ AudioDataAnalyzer.prototype.init = function (audioParameters) {
   this.audioParameters = audioParameters;
   var channels = audioParameters.channels;
   for (var i = 0; i < channels; ++i) {
-    this.__ffts.push(new FFT(this.frameLength * channels, audioParameters.sampleRate));
+    this.__ffts.push(new FFT(this.frameLength, audioParameters.sampleRate));
     this.__buffers.push(new Float32Array(this.frameLength));
   }
 };

@@ -9,15 +9,12 @@
     var context = canvasElement.getContext("2d");
     var width = canvasElement.width, height = canvasElement.height;
 
-    context.strokeStyle = "#0000FF";
     context.fillStyle = "#808080";
     context.fillRect(0,0,width,height);
-    for(var i=0;i<spectrum.length;++i) {
-      context.beginPath();
-      context.moveTo(i,height);
-      context.lineTo(i,height - spectrum[i]*width);
-      context.stroke();
-      context.closePath();
+    context.fillStyle = "#0000FF";
+    for(var i=0;i<50;++i) {
+      var h = width * spectrum[i];
+      context.fillRect(10 *i,height -h,8,h);
     }
   }
 
@@ -25,7 +22,6 @@
     var audio = document.getElementById("a1"), canvas = document.getElementById("c1");
 
     var source = new AudioDataSource(audio);
-
     var outputDestination = new AudioDataAnalyzer(1024);
     outputDestination.onDataAnalyzed = function(e) {
       draw(canvas, e.spectrums[0]);

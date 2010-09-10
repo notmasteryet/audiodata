@@ -7,6 +7,7 @@ TESTS = \
 	splitter.js \
 	filter.js \
 	lowpass.js \
+	analyzer.js \
 	$(NULL)
 
 ifdef TEST
