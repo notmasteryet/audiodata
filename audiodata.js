@@ -235,13 +235,13 @@ AudioDataDestination.prototype.writeAsync = function (source) {
   this.init(audioParameters);
   
   var tail = null;
-  var autoLatency = this.autoLatency;
-  var prebufferSize, prebufferSizeDelta;
+  var autoLatency = this.autoLatency, started = new Date().valueOf();
+  var prebufferSize, maxPrebufferSize;
 
   if (autoLatency) {
     this.latency = 0;
     prebufferSize = samplesPerSecond * 0.020; // initial latency 20ms
-    prebufferSizeDelta = samplesPerSecond * 0.010; // with 10ms step
+    maxPrebufferSize = samplesPerSecond * 2; // max 2 seconds
   } else {
     prebufferSize = samplesPerSecond * this.latency;
   }
@@ -280,17 +280,18 @@ AudioDataDestination.prototype.writeAsync = function (source) {
 
     // Auto latency detection
     if (autoLatency) {
+      prebufferSize = samplesPerSecond * (new Date().valueOf() - started) / 1000;
       if (destination.currentPlayPosition) { // play position moved
-        if (destination.currentPlayPosition === destination.currentWritePosition) {
-          // bug 591719 workaround
-          prebufferSize += prebufferSizeDelta;               
-        } else {
+        if (destination.currentPlayPosition !== destination.currentWritePosition) {
           autoLatency = false;
-          prebufferSize += 2 * prebufferSizeDelta; // add couple for missed timer events
           destination.latency = prebufferSize / samplesPerSecond;
+        } else {
+          // workaround for bug 591719
+          available = prebufferSize - destination.currentWritePosition;
         }
-      } else {
-        prebufferSize += prebufferSizeDelta;
+      } else if (prebufferSize > maxPrebufferSize) {
+        shutdownWrite();
+        throw "Auto-latency failed: max prebuffer size";
       }
     }
 
