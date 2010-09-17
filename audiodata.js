@@ -275,8 +275,8 @@ AudioDataDestination.prototype.writeAsync = function (source) {
     }
 
     // Check if we need add some data to the audio output.
-    var available = destination.currentPlayPosition + 
-                    prebufferSize - destination.currentWritePosition;
+    var available = Math.floor(destination.currentPlayPosition + 
+                    prebufferSize - destination.currentWritePosition);
 
     // Auto latency detection
     if (autoLatency) {
@@ -287,7 +287,7 @@ AudioDataDestination.prototype.writeAsync = function (source) {
           destination.latency = prebufferSize / samplesPerSecond;
         } else {
           // workaround for bug 591719
-          available = prebufferSize - destination.currentWritePosition;
+          available = Math.floor(prebufferSize - destination.currentWritePosition);
         }
       } else if (prebufferSize > maxPrebufferSize) {
         shutdownWrite();
