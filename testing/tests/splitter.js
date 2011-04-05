@@ -16,8 +16,8 @@ function test() {
 
   var audioParams = new AudioParameters(1, 44100);
   splitter.init(audioParams);  
-  splitter.write(samples.slice(0, 10));
-  splitter.write(samples.slice(10));
+  splitter.write(samples.subarray(0, 10));
+  splitter.write(samples.subarray(10));
   splitter.shutdown();
   
   Assert.assertEquals(dest1.currentWritePosition, len, "Data written #1");

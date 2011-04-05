@@ -268,7 +268,7 @@ AudioDataDestination.prototype.writeAsync = function (source) {
       destination.currentWritePosition += written;
       if (written < tail.length) {
         // Not all the data was written, saving the tail...
-        tail = (tail.subarray ? tail.subarray : tail.slice)(written);
+        tail = (tail.subarray ? tail.subarray(written) : tail.slice(written));
         return; // ... and exit the function.
       }
       tail = null;
@@ -310,14 +310,14 @@ AudioDataDestination.prototype.writeAsync = function (source) {
       }
 
       if (read < available) {
-        soundData = (soundData.subarray ? soundData.subarray : soundData.slice)(0, read);
+        soundData = (soundData.subarray ? soundData.subarray(0, read) : soundData.slice(0, read));
       }
 
       // Writting the data.
       written = audio.mozWriteAudio(soundData);
       if (written < soundData.length) {
         // Not all the data was written, saving the tail.
-        tail = (soundData.subarray ? soundData.subarray : soundData.slice)(written);
+        tail = (soundData.subarray ? soundData.subarray(written) : soundData.slice(written));
       }
       destination.currentWritePosition += written;
     }

@@ -66,7 +66,7 @@ Audio.prototype.__play = function(channels, sampleRate, data) {
     var portion = audio.mozFrameBufferSize;
     if(position <= passed) {
       this.readState = 2;
-      var tmp = data.slice(position, position + portion);
+      var tmp = (data.subarray ? data.subarray : data.slice)(position, position + portion);
       if(tmp.length < portion) {
         var tmp2 = new Float32Array(portion);
         for(var j=0;j<tmp.length;++j) tmp2[j] = tmp[j];
