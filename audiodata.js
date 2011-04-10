@@ -282,13 +282,8 @@ AudioDataDestination.prototype.writeAsync = function (source) {
     if (autoLatency) {
       prebufferSize = samplesPerSecond * (new Date().valueOf() - started) / 1000;
       if (destination.currentPlayPosition) { // play position moved
-        if (destination.currentPlayPosition !== destination.currentWritePosition) {
-          autoLatency = false;
-          destination.latency = prebufferSize / samplesPerSecond;
-        } else {
-          // workaround for bug 591719
-          available = Math.floor(prebufferSize - destination.currentWritePosition);
-        }
+        autoLatency = false;
+        destination.latency = prebufferSize / samplesPerSecond;
       } else if (prebufferSize > maxPrebufferSize) {
         shutdownWrite();
         throw "Auto-latency failed: max prebuffer size";
